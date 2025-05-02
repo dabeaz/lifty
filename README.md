@@ -312,7 +312,7 @@ That said, here are some possible uses of this software:
   the deck elevator of the Ship of the Imagination--as perfectly
   embodied by this text-only program running in the terminal."
   
-* **Adaption into adjacent evil.**  Could you modify this code into 
+* **Adaptation into adjacent evil.**  Could you modify this code into 
   something like a simulation of a hard drive?  Yeah, maybe.  That seems
   like a good way to make students of an operating systems course cry.
   

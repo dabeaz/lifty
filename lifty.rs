@@ -42,7 +42,7 @@ I will send the following event messages to the controller:
   Pn - Panel button for floor n was pressed
   Un - Up button on floor n was pressed
   Dn - Down button floor n was pressed
-  Fn - Approaching floor n (still in motion)
+  An - Approaching floor n (still in motion)
   Sn - Stopped at floor n (safe to open door)
   On - Door open on floor n (doors have fully opened)
   Cn - Door closed on floor n (now safe to move)

@@ -42,15 +42,17 @@ I will send the following event messages to the controller:
   Pn - Panel button for floor n was pressed
   Un - Up button on floor n was pressed
   Dn - Down button floor n was pressed
-  Fn - Approaching floor n (while in motion)
+  Fn - Approaching floor n (still in motion)
+  Sn - Stopped at floor n (safe to open door)
+  On - Door open on floor n (doors have fully opened)
   Cn - Door closed on floor n (now safe to move)
 
 I understand the following commands from the controller
 
   MU  - Start moving up
   MD  - Start moving down
-  S   - Stop moving
-  DO  - Open door
+  S   - Stop at the next floor (generates Sn event when stopped)
+  DO  - Open door (will generate On event when done)
   DC  - Close the door (will generate Cn event when done)
   CPn - Clear panel button n
   CUn - Clear up button n
@@ -81,8 +83,9 @@ const MY_ADDRESS: &str = "127.0.0.1:10000";
 const CONTROL_ADDRESS: &str = "127.0.0.1:11000";
 
 // Internal timing
-const TICKS_PER_FLOOR: usize = 30;
-const TICKS_FOR_CLOSING: usize = 20;
+const TICKS_PER_FLOOR: usize = 40;
+const TICKS_FOR_DOOR: usize = 20;
+const APPROACH_TICKS: usize = 10;
 const TICK_INTERVAL: u64 = 100;
 
 // Hoist motor status
@@ -96,6 +99,7 @@ enum Motor {
 // Door status
 #[derive(Debug, Clone, PartialEq)]
 enum Door {
+    Opening,
     Open,
     Closing,
     Closed,
@@ -109,30 +113,19 @@ enum Indicator {
     Off,
 }
 
-// Elevator Status
-#[derive(Debug, Clone, PartialEq)]
-enum Status {
-    Initial,
-    MoveUp,
-    MoveDown,
-    Open,
-    Closing,
-    Closed,
-    Crashed(String),
-}
-
 #[derive(Debug)]
 struct Elevator {
     pub floor: usize,
     pub panel_buttons: [bool; 5], // Buttons in the car
     pub up_buttons: [bool; 5],    // Up buttons in the building
     pub down_buttons: [bool; 5],  // Down buttons in the building
-    pub indicator: Indicator,     // Indicator light
+    pub indicator: Indicator,     // Indicator light status
     pub indicator_floor: usize,
     pub clock: usize,
     pub motor: Motor,
     pub door: Door,
-    pub status: Status,
+    pub stopping: bool,
+    pub crashed: bool,
 }
 
 impl Elevator {
@@ -147,7 +140,8 @@ impl Elevator {
             clock: 0,
             motor: Motor::Off,
             door: Door::Closed,
-            status: Status::Initial,
+            stopping: false,
+            crashed: false,
         }
     }
 
@@ -161,12 +155,13 @@ impl Elevator {
         self.clock = 0;
         self.motor = Motor::Off;
         self.door = Door::Closed;
-        self.status = Status::Closed;
+        self.stopping = false;
+        self.crashed = false;
     }
 
     fn crash(&mut self, reason: &str) {
         println!("\nCRASH! : {reason}");
-        self.status = Status::Crashed(reason.to_string());
+        self.crashed = true;
     }
 
     fn as_string(&self) -> String {
@@ -203,40 +198,29 @@ impl Elevator {
         } else {
             "--"
         };
-        let status = match self.status {
-            Status::Initial => "INIT",
-            Status::MoveUp => "UP",
-            Status::MoveDown => "DOWN",
-            Status::Open => "OPEN",
-            Status::Closing => "CLOSING",
-            Status::Closed => "CLOSED",
-            Status::Crashed(_) => "CRASH",
+        let status = if self.crashed {
+            "CRASH"
+        } else if self.stopping && self.clock >= (TICKS_PER_FLOOR - APPROACH_TICKS) {
+            "STOPPING"
+        } else if self.motor == Motor::Up {
+            "UP"
+        } else if self.motor == Motor::Down {
+            "DOWN"
+        } else if self.door == Door::Opening {
+            "OPENING"
+        } else if self.door == Door::Open {
+            "OPEN"
+        } else if self.door == Door::Closing {
+            "CLOSING"
+        } else if self.door == Door::Closed {
+            "CLOSED"
+        } else {
+            panic!("Can't determine status")
         };
         format!(
             "[ FLOOR {} | {status:8} {indicator} | {ps} | {us} | {ds} ]",
             self.floor
         )
-    }
-
-    fn update_status(&mut self) {
-        if let Status::Crashed(_) = self.status {
-            return;
-        }
-        self.status = match (&self.motor, &self.door) {
-            (Motor::Up, Door::Closed) => Status::MoveUp,
-            (Motor::Down, Door::Closed) => Status::MoveDown,
-            (Motor::Off, Door::Closing) => Status::Closing,
-            (Motor::Off, Door::Closed) => Status::Closed,
-            (Motor::Off, Door::Open) => Status::Open,
-            (_, Door::Open) => {
-                self.crash("Moving with the door open");
-                return;
-            }
-            (_, Door::Closing) => {
-                self.crash("Moving before the door has closed");
-                return;
-            }
-        };
     }
 
     fn set_panel_button(&mut self, floor: usize) {
@@ -288,19 +272,45 @@ impl Elevator {
     }
 
     fn set_motor(&mut self, status: Motor) {
+        if self.door != Door::Closed {
+            self.crash("motor command received while doors open");
+            return;
+        }
+        if self.motor == Motor::Up && status == Motor::Down {
+            self.crash("violent direction switch (up->down)");
+            return;
+        }
+        if self.motor == Motor::Down && status == Motor::Up {
+            self.crash("violent direction switch (down->up)");
+            return;
+        }
         self.motor = status;
         self.clock = 0;
-        self.update_status();
     }
 
     fn set_door(&mut self, status: Door) {
-        if self.status == Status::Closing {
-            self.crash("door already closing");
+        if self.motor == Motor::Up || self.motor == Motor::Down {
+            self.crash("door command received while moving");
+            return;
+        }
+        if self.door == Door::Closing && status != Door::Closed {
+            self.crash("door command received while closing");
+            return;
+        }
+        if self.door == Door::Opening && status != Door::Open {
+            self.crash("door command received while opening");
+            return;
+        }
+        if self.door == Door::Open && status == Door::Opening {
+            self.crash("door already open");
+            return;
+        }
+        if self.door == Door::Closed && status == Door::Closing {
+            self.crash("door already closed");
             return;
         }
         self.door = status;
         self.clock = 0;
-        self.update_status();
     }
 
     fn handle_command(&mut self, cmd: &str) -> Option<String> {
@@ -308,13 +318,10 @@ impl Elevator {
             self.reset();
             return None;
         }
-        if let Status::Crashed(_) = self.status {
+        if self.crashed {
             return None;
         }
-        if self.status == Status::Initial {
-            return None;
-        }
-        let ret = match cmd {
+        match cmd {
             // Button presses
             "P1" | "P2" | "P3" | "P4" | "P5" => {
                 self.set_panel_button(cmd[1..].parse().unwrap());
@@ -324,9 +331,17 @@ impl Elevator {
                 self.set_up_button(cmd[1..].parse().unwrap());
                 Some(cmd.to_string())
             }
+            "U5" | "CU5" => {
+                self.crash("No up button on top floor");
+                None
+            }
             "D2" | "D3" | "D4" | "D5" => {
                 self.set_down_button(cmd[1..].parse().unwrap());
                 Some(cmd.to_string())
+            }
+            "D1" | "CD1" => {
+                self.crash("No down button on bottom floor");
+                None
             }
             // Clear buttons
             "CP1" | "CP2" | "CP3" | "CP4" | "CP5" => {
@@ -346,8 +361,16 @@ impl Elevator {
                 self.set_indicator(cmd[2..].parse().unwrap(), Indicator::Up);
                 None
             }
+            "IU5" => {
+                self.crash("No up indicator light on top floor");
+                None
+            }
             "ID2" | "ID3" | "ID4" | "ID5" => {
                 self.set_indicator(cmd[2..].parse().unwrap(), Indicator::Down);
+                None
+            }
+            "ID1" => {
+                self.crash("No down indicator light on bottom floor");
                 None
             }
             "CI1" | "CI2" | "CI3" | "CI4" | "CI5" => {
@@ -364,15 +387,21 @@ impl Elevator {
                 None
             }
             "S" => {
-                if self.clock >= 1 && self.motor != Motor::Off {
-                    self.crash("stopped between floors!");
+                if self.stopping {
+                    self.crash("Already made a request to stop");
+                } else if self.motor != Motor::Off {
+                    // If we can safely stop we will.
+                    if self.clock <= TICKS_PER_FLOOR - APPROACH_TICKS {
+                        self.stopping = true;
+                    }
+                } else {
+                    self.crash("Request to stop, but not moving");
                 }
-                self.set_motor(Motor::Off);
                 None
             }
             // Door commands (from control)
             "DO" => {
-                self.set_door(Door::Open);
+                self.set_door(Door::Opening);
                 None
             }
             "DC" => {
@@ -385,41 +414,50 @@ impl Elevator {
                 self.crash("Unrecognized command");
                 None
             }
-        };
-        self.update_status();
-        ret
+        }
     }
 
     fn handle_tick(&mut self) -> Option<String> {
         self.clock += 1;
-        match self.status {
-            Status::MoveUp => {
-                if self.floor < 5 && self.clock > TICKS_PER_FLOOR {
-                    self.floor += 1;
-                    self.clock = 0;
-                    return Some(format!("F{}", self.floor));
-                } else if self.floor >= 5 && self.clock > 0 {
-                    self.crash("Hit the roof!");
+        if self.motor == Motor::Up {
+            if self.floor >= 5 {
+                self.crash("Hit the roof!");
+            } else if self.clock == (TICKS_PER_FLOOR - APPROACH_TICKS) {
+                return Some(format!("F{}", self.floor + 1));
+            } else if self.clock >= TICKS_PER_FLOOR {
+                self.floor += 1;
+                self.clock = 0;
+                if self.stopping {
+                    self.set_motor(Motor::Off);
+                    self.stopping = false;
+                    return Some(format!("S{}", self.floor));
                 }
             }
-            Status::MoveDown => {
-                if self.floor > 1 && self.clock > TICKS_PER_FLOOR {
-                    self.floor -= 1;
-                    self.clock = 0;
-                    return Some(format!("F{}", self.floor));
-                } else if self.floor <= 1 && self.clock > 0 {
-                    self.crash("Hit the ground!");
+        } else if self.motor == Motor::Down {
+            if self.floor <= 1 {
+                self.crash("Hit the ground!");
+            } else if self.clock == (TICKS_PER_FLOOR - APPROACH_TICKS) {
+                return Some(format!("F{}", self.floor - 1));
+            } else if self.clock >= TICKS_PER_FLOOR {
+                self.floor -= 1;
+                self.clock = 0;
+                if self.stopping {
+                    self.set_motor(Motor::Off);
+                    self.stopping = false;
+                    return Some(format!("S{}", self.floor));
                 }
             }
-            Status::Closing => {
-                if self.clock > TICKS_FOR_CLOSING {
-                    self.clock = 0;
-                    self.door = Door::Closed;
-                    return Some(format!("C{}", self.floor));
-                }
+        } else if self.door == Door::Closing {
+            if self.clock > TICKS_FOR_DOOR {
+                self.set_door(Door::Closed);
+                return Some(format!("C{}", self.floor));
             }
-            _ => {}
-        };
+        } else if self.door == Door::Opening {
+            if self.clock > TICKS_FOR_DOOR {
+                self.set_door(Door::Open);
+                return Some(format!("D{}", self.floor));
+            }
+        }
         None
     }
 }
@@ -433,25 +471,28 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::{thread, time};
 
-fn read_stdin(tx: Sender<String>) -> ! {
+enum Command {
+    UserInput(String),
+    Internal(String),
+}
+
+fn read_stdin(tx: Sender<Command>) -> ! {
     loop {
         let mut buffer = String::new();
         io::stdin().read_line(&mut buffer).unwrap();
-        let cmd = buffer.trim().to_uppercase();
+        let cmd = Command::UserInput(buffer.trim().to_uppercase());
         tx.send(cmd).unwrap();
-        // Special message to force a display refresh
-        tx.send(String::new()).unwrap();
     }
 }
 
-fn generate_clock_ticks(tx: Sender<String>) -> ! {
+fn generate_clock_ticks(tx: Sender<Command>) -> ! {
     loop {
         thread::sleep(time::Duration::from_millis(TICK_INTERVAL));
-        tx.send(String::from("T")).unwrap();
+        tx.send(Command::Internal(String::from("T"))).unwrap();
     }
 }
 
-fn read_socket(address: &str, tx: Sender<String>) -> ! {
+fn read_socket(address: &str, tx: Sender<Command>) -> ! {
     let socket = UdpSocket::bind(address).unwrap();
     loop {
         let mut buf = [0; 2000];
@@ -459,7 +500,7 @@ fn read_socket(address: &str, tx: Sender<String>) -> ! {
             Ok((n, _)) => {
                 let cmds = String::from_utf8((&buf[0..n]).to_vec()).unwrap();
                 for cmd in cmds.lines() {
-                    tx.send(cmd.to_string()).unwrap();
+                    tx.send(Command::Internal(cmd.to_string())).unwrap();
                 }
             }
             Err(e) => panic!("IO Error: {}", e),
@@ -467,8 +508,8 @@ fn read_socket(address: &str, tx: Sender<String>) -> ! {
     }
 }
 
-fn spawn_threads() -> Receiver<String> {
-    let (tx, rx) = mpsc::channel::<String>();
+fn spawn_threads() -> Receiver<Command> {
+    let (tx, rx) = mpsc::channel::<Command>();
     let itx = tx.clone();
     thread::spawn(move || read_stdin(itx));
     let ttx = tx.clone();
@@ -490,19 +531,37 @@ fn main() {
     println!("    Dn  - Down button on floor n\n");
     println!("If something goes wrong, I'll crash and you'll have to call");
     println!("maintenance to restart the elevator control program.\n");
+
+    let mut print_newline = false;
     loop {
         let es = elev.as_string();
         if es != last {
-            print!("\r{} : ", es);
+            if print_newline {
+                print!("\n");
+            }
+            print!("{} : ", es);
             std::io::stdout().flush().unwrap();
             last = es;
         }
         match command_channel.recv() {
-            Ok(cmd) => {
-                if cmd == "" {
-                    last = String::new();
-                    continue;
-                }
+            Ok(recvcmd) => {
+                let cmd = match recvcmd {
+                    Command::UserInput(cmd) => {
+                        print_newline = false;
+                        last = String::from("");
+                        cmd
+                    }
+                    Command::Internal(cmd) => {
+                        if cmd != "T" {
+                            print_newline = false;
+                            println!("recv: {cmd}");
+                            last = String::from("");
+                        } else {
+                            print_newline = true;
+                        }
+                        cmd
+                    }
+                };
                 if let Some(outcmd) = elev.handle_command(&cmd) {
                     out_socket
                         .send_to(outcmd.as_bytes(), CONTROL_ADDRESS)

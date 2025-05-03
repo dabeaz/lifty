@@ -85,19 +85,13 @@ I'm just hardware, but I have buttons (type below and hit return):
 If something goes wrong, I'll crash and you'll have to call
 maintenance to restart the elevator control program.
 
-[ FLOOR 1 | INIT     -- | P:----- | U:----- | D:----- ] :
+[ FLOOR 1 | CLOSED     -- | P:----- | U:----- | D:----- ] :
 ```
 
-You can type commands after the `:`.   Enter "R" to reset the
-elevator to a starting state.  The output should look like this:
-
-```
-[ FLOOR 1 | INIT     -- | P:----- | U:----- | D:----- ] : R
-[ FLOOR 1 | CLOSED   -- | P:----- | U:----- | D:----- ] : 
-```
-
-Try pressing a few buttons by typing "P2", "U3", and "D5" separately.
-The output should change to the following:
+The elevator is stopped on the first floor with the door closed.
+You can type commands after the `:`.  Try pressing a few buttons by
+typing "P2", "U3", and "D5" separately.  The output should change to
+the following:
 
 ```
 [ FLOOR 1 | CLOSED   -- | P:----- | U:----- | D:----- ] : P2
@@ -108,23 +102,36 @@ The output should change to the following:
 
 Here, the hardware has recorded some button presses.  However, 
 there are no brains built into the simulator.  Literally nothing
-is happening right now.   You can instruct the hardware to do
-things though.  Try opening the door by typing "DO".
+happens. You can instruct the hardware to do things though.  
+Try opening the door by typing "DO".  You'll see the elevator
+status show "OPENING" for a few seconds before changing to 
+"OPEN".  The output will look like this:
 
 ```
 [ FLOOR 1 | CLOSED   -- | P:-2--- | U:--3-- | D:----5 ] : DO
+[ FLOOR 1 | OPENING  -- | P:-2--- | U:--3-- | D:----5 ] : 
 [ FLOOR 1 | OPEN     -- | P:-2--- | U:--3-- | D:----5 ] :
 ```
 
 Try closing the door by typing "DC".  You should see the elevator
 status show "CLOSING" for a few seconds before finally changing to
-"CLOSED".   Although the output is basic, the elevator is dynamic.
+"CLOSED".   Although the output is basic, the elevator is dynamic,
+has internal timing, and will change its state automatically (updating
+the output as needed).  It might look weird to see all of
+the state changes printed in order, but you'll appreciate this
+feature when it comes to explaining what's happening or for
+debugging.
+
 Try typing "MU" to have the elevator start moving up.  You
 should see the floor slowly increment about every 3-4 seconds. 
 Eventually the elevator will crash with a message like this:
 
 ```
 [ FLOOR 1 | CLOSED   -- | P:-2--- | U:--3-- | D:----5 ] : MU
+[ FLOOR 1 | UP       -- | P:-2--- | U:--3-- | D:----5 ] :
+[ FLOOR 2 | UP       -- | P:-2--- | U:--3-- | D:----5 ] :
+[ FLOOR 3 | UP       -- | P:-2--- | U:--3-- | D:----5 ] :
+[ FLOOR 4 | UP       -- | P:-2--- | U:--3-- | D:----5 ] :
 [ FLOOR 5 | UP       -- | P:-2--- | U:--3-- | D:----5 ] :
 CRASH! : Hit the roof!
 [ FLOOR 5 | CRASH    -- | P:-2--- | U:--3-- | D:----5 ] :
@@ -141,10 +148,25 @@ to crash.   For example, telling it to open the doors and then move.
 ```
 [ FLOOR 5 | CRASH    -- | P:-2--- | U:--3-- | D:----5 ] : R
 [ FLOOR 1 | CLOSED   -- | P:----- | U:----- | D:----- ] : DO
+[ FLOOR 1 | OPENING  -- | P:----- | U:----- | D:----- ] : 
 [ FLOOR 1 | OPEN     -- | P:----- | U:----- | D:----- ] : MU
 
-CRASH! : Moving with the door open
+CRASH! : motor command received while doors open
 [ FLOOR 1 | CRASH    -- | P:----- | U:----- | D:----- ] :
+```
+
+The simulator is pretty sensitive to timing related bugs
+and various modal errors.  For example, if you tried to
+open the doors twice:
+
+```
+[ FLOOR 5 | CRASH    -- | P:-2--- | U:--3-- | D:----5 ] : R
+[ FLOOR 1 | CLOSED   -- | P:----- | U:----- | D:----- ] : DO
+[ FLOOR 1 | OPENING  -- | P:----- | U:----- | D:----- ] : 
+[ FLOOR 1 | OPEN     -- | P:----- | U:----- | D:----- ] : DO
+
+CRASH! : door already open
+[ FLOOR 1 | CRASH    -- | P:----- | U:----- | D:----- ] : 
 ```
 
 ## Remote Access
@@ -170,11 +192,16 @@ The Lifty program should be showing an elevator with the door open like
 this:
 
 ```
+[ FLOOR 1 | CRASHD   -- | P:----- | U:----- | D:----- ] : recv: R
+[ FLOOR 1 | CLOSED   -- | P:----- | U:----- | D:----- ] : recv: DO
+[ FLOOR 1 | OPENING  -- | P:----- | U:----- | D:----- ] :
 [ FLOOR 1 | OPEN     -- | P:----- | U:----- | D:----- ] :
 ```
 
-Any command that can be typed at the prompt can also be sent to Lifty via
-a socket like this.
+Any command that can be typed at the prompt can also be sent to Lifty
+via a socket.  All commands received in this way will be printed, but
+prefaced by a "recv:" to indicate that they were received over the
+network.
 
 ## Events
 
@@ -184,14 +211,25 @@ event:
 
 ```python
 >>> sock.recvfrom(100)
+(b'O1', ('127.0.0.1', 50903))
+>>> 
+```
+
+You'll immediately see an "O1" event. This is something the simulator
+sent when the doors finished opening.   Now, type this in Python:
+
+```python
+>>> sock.recvfrom(100)
 ... blocked (waiting)
 ```
 
-Now, go the Lifty prompt and type "DC" to close the doors. Lifty will
-briefly display "CLOSING" before shifting to the following output:
+Python will be blocked waiting for a message. Go the Lifty prompt and type "DC" 
+to close the doors. Lifty will briefly display "CLOSING" before shifting to "CLOSED"
+like this:
 
 ```
 [ FLOOR 1 | OPEN     -- | P:----- | U:----- | D:----- ] : DC
+[ FLOOR 1 | CLOSING  -- | P:----- | U:----- | D:----- ] :
 [ FLOOR 1 | CLOSED   -- | P:----- | U:----- | D:----- ] :
 ```
 
@@ -226,7 +264,7 @@ crashes into the roof:
 (b'F5', ('127.0.0.1', 50903))
 ```
 
-These are events indicating that the elevator is moving to a new
+These are events indicating that the elevator is approaching a new
 floor.   Again, the elevator is pretty dumb.  It will keep moving
 unless you tell it to stop.   Here's a modified Python example
 that illustrates stopping on the 4th floor:
@@ -247,11 +285,17 @@ reaches the 4th floor.  The final state will look like this:
 ```
 [ FLOOR 5 | CRASH    -- | P:----- | U:----- | D:----- ] : R
 [ FLOOR 1 | CLOSED   -- | P:----- | U:----- | D:----- ] : MU
+[ FLOOR 1 | UP       -- | P:----- | U:----- | D:----- ] : 
+[ FLOOR 2 | UP       -- | P:----- | U:----- | D:----- ] : 
+[ FLOOR 3 | UP       -- | P:----- | U:----- | D:----- ] : recv: S
+[ FLOOR 3 | STOPPING -- | P:----- | U:----- | D:----- ] : 
 [ FLOOR 4 | CLOSED   -- | P:----- | U:----- | D:----- ] :
 ```
 
-The "CLOSED" here means that the elevator is simply stopped with the
-doors closed.   If you want it to open the doors, a "DO" command
+The "STOPPING" state means the elevator has been instructed to stop
+at the next floor and is in the process of doing so. 
+The "CLOSED" state indicates that the elevator has fully stopped.
+If you want it to open the doors, a "DO" command
 must be sent.  You can do that from Python if you want:
 
 ```python
@@ -261,7 +305,8 @@ must be sent.  You can do that from Python if you want:
 ```
 
 This is the basic idea of Lifty.  It's the simulated hardware of an
-elevator, but none of the brains of an elevator.
+elevator, but none of the brains of an elevator.  It will try to
+show you everything that is happening though.
 
 ## Commands
 
@@ -274,8 +319,8 @@ Un  - Press up button on floor n
 Dn  - Press down button on floor n
 MU  - Start moving up
 MD  - Start moving down
-S   - Stop moving
-DO  - Open door
+S   - Stop moving (will generate Sn event when stopped)
+DO  - Open door (will generate On event when done)
 DC  - Close the door (will generate Cn event when done)
 CPn - Clear panel button n
 CUn - Clear up button n
@@ -300,14 +345,64 @@ a separate control program assumed to be listening on port 11000.
 Pn - Panel button for floor n was pressed
 Un - Up button on floor n was pressed
 Dn - Down button floor n was pressed
-Fn - Arrived at floor n (while in motion)
+Fn - Approaching floor n (in motion)
+Sn - Stopped at floor n (safe to open doors)
 Cn - Door closed on floor n (now safe to move)
+On - Door opened on floor n (door fully open)
 ```
 
 If there is a control program running, it would make decisions about what
 to do next based on these events. Emphasis: The simulator itself has
 no smarts built into it other than some basic defense to avoid cutting
 passengers in half.
+
+## Small Details
+
+Elevators in the real world do a lot of things with illuminated
+buttons and lights.  The simulator mimics this behavior but requires
+explicit control.  For example, if a button gets pressed, it will
+light up and stay lit up until it is explicitly cleared by a command.
+Try this:
+
+```
+[ FLOOR 1 | CLOSED   -- | P:----- | U:----- | D:----- ] : P3
+[ FLOOR 1 | CLOSED   -- | P:--3-- | U:----- | D:----- ] : CP3
+[ FLOOR 1 | CLOSED   -- | P:----- | U:----- | D:----- ] :
+```
+
+The "P3" presses a button on the panel.  The "CP3" command clears
+the associated light.  It is assumed that "CP3" would be sent by
+whatever control software is running.  For example, when an elevator
+stops on floor 3, the control software would clear the button light.
+Again, lights are never cleared on their own by the simulator.
+
+Indicator lights in the building are also a helpful user interface for
+riders.  Here is an example of controlling a direction indicator
+light. The "IU1" command makes the "Up" arrow light up (shown by
+"^^").  The "CI1" command turns the indicator light off.
+
+```
+[ FLOOR 1 | CLOSED   -- | P:----- | U:----- | D:----- ] : IU1
+[ FLOOR 1 | CLOSED   ^^ | P:----- | U:----- | D:----- ] : CI1
+[ FLOOR 1 | CLOSED   -- | P:----- | U:----- | D:----- ] : 
+```
+
+Indicator lights are finicky.  You might try turning the "Down" light
+on, but you'll immediately crash the simulator:
+
+```
+[ FLOOR 1 | CLOSED   -- | P:----- | U:----- | D:----- ] : ID1
+
+CRASH! : No down indicator light on bottom floor
+[ FLOOR 1 | CRASH    -- | P:----- | U:----- | D:----- ] :
+```
+
+Button and direction indicator lights don't have any impact on how the
+elevator actually simulator works other than generating an event if a
+button gets pressed.  However, if you're giving some kind of class
+project, these can be a great source of pedantic point deductions.
+"Why did I get a B?"  "Because you didn't clear the up button upon
+arrival."  "I hate you."  You get the idea.
 
 ## Ideas
 

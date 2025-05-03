@@ -260,15 +260,14 @@ impl Elevator {
     }
 
     fn set_indicator(&mut self, floor: usize, status: Indicator) {
-        if self.floor != floor {
-            self.crash("direction indicator: elevator not on this floor");
-            return;
+        if self.indicator != Indicator::Off {
+            self.crash("direction indicator already illuminated");
+        } else if status == Indicator::Off {
+            self.crash("direction indicator already off");
+        } else {
+            self.indicator = status;
+            self.indicator_floor = floor;
         }
-        if self.indicator_floor != floor && self.indicator != Indicator::Off {
-            self.crash("direction indicator still illuminated for a different floor");
-        }
-        self.indicator = status;
-        self.indicator_floor = floor;
     }
 
     fn set_motor(&mut self, status: Motor) {

@@ -36,17 +36,17 @@ of computer science problems involving algorithms, design, testing,
 systems, formal verification, software engineering, and more.  
 
 What you'll find here is a simulator of elevator hardware with none of
-the brains of an elevator. Thus, think of it as a kind of empty canvas
+the brains of an elevator. Thus, think of it as an empty canvas
 for exploring various kinds of programming projects involving
 elevators (see the "Ideas" section at the end for possible projects).
 
-The simulator models a single elevator car in a five-floor
-building.  It's nothing fancy--the image below gives you an overall
-idea of the setup.
+The simulator models an elevator system consisting of a single car in
+a five-floor building.  It's nothing fancy--the image below gives you
+a visual reference for the setup.
 
 ![](images/elevator.jpg)
 
-Basically, the hardware has the following features:
+The hardware has the following features:
 
 * A single elevator car.
 * A motor that makes the car go up and down.
@@ -58,7 +58,7 @@ Basically, the hardware has the following features:
 
 You can control the elevator by typing commands in the terminal or by
 sending network messages.  The simulator can also report real-time
-events to a separate program via the network.
+events to a separate control program via the network.
 
 ## The Simulator 
 
@@ -100,12 +100,12 @@ the following:
 [ FLOOR 1 | CLOSED   -- | P:-2--- | U:--3-- | D:----5 ] :
 ```
 
-Here, the hardware has recorded some button presses.  However, 
-there are no brains built into the simulator.  Literally nothing
-happens. You can instruct the hardware to do things though.  
-Try opening the door by typing "DO".  You'll see the elevator
-status show "OPENING" for a few seconds before changing to 
-"OPEN".  The output will look like this:
+Here, the hardware has recorded some button presses.  However, there
+are no brains built into the simulator.  Literally nothing
+happens. You can instruct the hardware to do things though. Try
+opening the door by typing "DO".  You'll see the elevator status show
+"OPENING" for a few seconds before changing to "OPEN".  The output
+will look like this:
 
 ```
 [ FLOOR 1 | CLOSED   -- | P:-2--- | U:--3-- | D:----5 ] : DO
@@ -155,7 +155,7 @@ CRASH! : motor command received while doors open
 [ FLOOR 1 | CRASH    -- | P:----- | U:----- | D:----- ] :
 ```
 
-The simulator is pretty sensitive to timing related bugs
+The simulator is pretty sensitive to timing related issues
 and various modal errors.  For example, if you tried to
 open the doors twice:
 
@@ -172,9 +172,10 @@ CRASH! : door already open
 ## Remote Access
 
 Although the above example involved typing commands at the terminal,
-the simulator can also receive commands over the network using a
-UDP socket.   Start the `lifty` program in a separate terminal window.
-Now, go to a different terminal and start Python.  Try the following
+the simulator can also receive commands over the network using a UDP
+socket.  Start the `lifty` program in a separate terminal window.
+Now, go to a different terminal and start Python (which provides a
+good environment for interactive experimentation).  Try the following
 example:
 
 ```python
@@ -192,7 +193,7 @@ The Lifty program should be showing an elevator with the door open like
 this:
 
 ```
-[ FLOOR 1 | CRASHD   -- | P:----- | U:----- | D:----- ] : recv: R
+[ FLOOR 1 | CRASH    -- | P:----- | U:----- | D:----- ] : recv: R
 [ FLOOR 1 | CLOSED   -- | P:----- | U:----- | D:----- ] : recv: DO
 [ FLOOR 1 | OPENING  -- | P:----- | U:----- | D:----- ] :
 [ FLOOR 1 | OPEN     -- | P:----- | U:----- | D:----- ] :
@@ -258,10 +259,10 @@ crashes into the roof:
 >>> while True:
 ...     print(sock.recvfrom(100))
 ...
-(b'F2', ('127.0.0.1', 50903))
-(b'F3', ('127.0.0.1', 50903))
-(b'F4', ('127.0.0.1', 50903))
-(b'F5', ('127.0.0.1', 50903))
+(b'A2', ('127.0.0.1', 50903))
+(b'A3', ('127.0.0.1', 50903))
+(b'A4', ('127.0.0.1', 50903))
+(b'A5', ('127.0.0.1', 50903))
 ```
 
 These are events indicating that the elevator is approaching a new
@@ -272,7 +273,7 @@ that illustrates stopping on the 4th floor:
 ```python
 >>> while True:
 ...     msg, _ = sock.recvfrom(100)
-...     if msg == b'F4':
+...     if msg == b'A4':
 ...         sock.sendto(b'S', ('localhost', 10000))
 ...         break
 ...
@@ -345,7 +346,7 @@ a separate control program assumed to be listening on port 11000.
 Pn - Panel button for floor n was pressed
 Un - Up button on floor n was pressed
 Dn - Down button floor n was pressed
-Fn - Approaching floor n (in motion)
+An - Approaching floor n (in motion)
 Sn - Stopped at floor n (safe to open doors)
 Cn - Door closed on floor n (now safe to move)
 On - Door opened on floor n (door fully open)
@@ -376,9 +377,13 @@ whatever control software is running.  For example, when an elevator
 stops on floor 3, the control software would clear the button light.
 Again, lights are never cleared on their own by the simulator.
 
-Indicator lights in the building are also a helpful user interface for
-riders.  Here is an example of controlling a direction indicator
-light. The "IU1" command makes the "Up" arrow light up (shown by
+Direction indicator lights are a helpful user interface for riders
+that is easy to overlook.  Close your eyes and visualize your use of
+an elevator.  Yes, when the elevator arrives at your floor, there is
+usually some kind of light that displays the direction of travel.
+The simulator has this, but it must be explicitly controlled.
+Here is an example of setting a direction indicator
+light. The "IU1" command illuminates the "Up" arrow on floor 1 (shown by
 "^^").  The "CI1" command turns the indicator light off.
 
 ```
@@ -387,8 +392,10 @@ light. The "IU1" command makes the "Up" arrow light up (shown by
 [ FLOOR 1 | CLOSED   -- | P:----- | U:----- | D:----- ] : 
 ```
 
-Indicator lights are finicky.  You might try turning the "Down" light
-on, but you'll immediately crash the simulator:
+Indicator lights are finicky. Only one such light can be illuminated
+at a time in the entire building and not all floors have the same
+lights.  For example, if you try to turn on the "Down" arrow on floor
+1, you'll crash the simulator:
 
 ```
 [ FLOOR 1 | CLOSED   -- | P:----- | U:----- | D:----- ] : ID1
@@ -397,53 +404,102 @@ CRASH! : No down indicator light on bottom floor
 [ FLOOR 1 | CRASH    -- | P:----- | U:----- | D:----- ] :
 ```
 
-Button and direction indicator lights don't have any impact on how the
-elevator actually simulator works other than generating an event if a
-button gets pressed.  However, if you're giving some kind of class
-project, these can be a great source of pedantic point deductions.
-"Why did I get a B?"  "Because you didn't clear the up button upon
-arrival."  "I hate you."  You get the idea.
+Buttons and direction indicator lights don't have any impact on the
+operation of the simulator other than generating an event when 
+a button gets pressed.  For example, the elevator is *NOT* going to
+stop just because a button is illuminated---remember that the
+simulator is dumb.
+
+If you're giving some kind of class project, buttons and lights can be
+a great source of pedantic point deductions.  "Why did I get a B?"
+"Because you didn't turn off the up button light upon car arrival."
+"I hate you."  You get the idea.
 
 ## Ideas
 
-Now that you've seen the simulator, what might you do with it?  Here are some 
+Now that you've seen the simulator, what might you do with it? Here are some 
 possible ideas:
 
-* **An evil class project involving elevators.**  If an elevator isn't so hard
-  to code, then do it!  Moreover, prove to everyone else that a) your code actually
-  corresponds to how an elevator works in reality and b) your code will never crash
-  the elevator.  This is a project that I give in some of my courses such as
-  [Advanced Programming with Python](https://dabeaz.com/advprog.html)
-  or [Rusty Elevator](https://dabeaz.com/rusty_elevator.html).  It's fun. 
+### Projects Involving the Use of the Simulator
 
-* **An evil job interview question.** Kind of like the class project idea, but
-  only give applicants an hour to work on it to see how 10x they are.  Hell yeah.
+* **An evil coding project involving elevators.**  If an elevator isn't
+  so hard to code, then do it!  Moreover, prove to everyone else that
+  a) your code corresponds to how an elevator actually works in
+  reality and b) your code will never crash the elevator, deadlock, or
+  exhibit other strange behavior.  This is a project that I give in
+  some of my courses such as [Advanced Programming with
+  Python](https://dabeaz.com/advprog.html) or [Rusty
+  Elevator](https://dabeaz.com/rusty_elevator.html).  It's fun.
 
-* **An evil elevator demonstration tool.**  "Visualize yourself riding
-  the deck elevator of the Ship of the Imagination--as perfectly
-  embodied by this text-only program running in the terminal."
+* **An evil vibe coding project.**  "Here's some hardware for an 
+  elevator--go write the software for controlling it."  No further guidance
+  of any kind is given.  Now sit back with a wry smile
+  as you watch the resulting process of self-discovery unfold. 
+
+* **An evil job interview question.** Kind of like the vibe coding idea, but
+  only give applicants an hour to work on it to see how 10x they are.
+  Make sure you record the camera to see all of the sweating.
+
+* **An evil object-oriented design project.** Apply various OO design
+  principles to the problem of controlling an elevator.  Is this an
+  opportunity to practice dependency injection?  Or apply the state
+  machine pattern?  Or to accidentally unleash a zombie hoard by
+  mispronouncing one of the words while uttering
+  "model-view-control?" Yeah, maybe.
   
-* **Adaptation into adjacent evil.**  Could you modify this code into 
-  something like a simulation of a hard drive?  Yeah, maybe.  That seems
-  like a good way to make students of an operating systems course cry.
+* **An evil formal modeling project.** Use the features of the simulator
+  as the basis for formally specifying an elevator control algorithm 
+  using a tool like TLA+.  Once you've convinced yourself that the
+  algorithm is correct, code it in your favorite language and watch
+  the elevator work on the first try.  If not, you get an F.
+  
+* **An evil elevator demonstration tool.**  Maybe you're trying to
+  explain some kind of puzzler problem involving elevators.  Your
+  description involving the ending of the Blues Brothers fell flat, so
+  you've decided that a live demo would be better. Fire up Lifty and say
+  "now visualize yourself riding this elevator in the Building of the
+  Imagination--as perfectly embodied by this text-only program running
+  in the terminal."
+  
+### Projects Involving the Simulator Program Itself
+
+* **Adaptation into adjacent evil.**  Could you modify this code into
+  something like a simulation of a hard drive?  Yeah, maybe.  That
+  seems like a good way to make students of an operating systems
+  course cry.  John Azariah, clearly an evil person himself, has
+  suggested to me that an elevator might not be too unlike a Turing
+  machine.
   
 * **An evil code porting project.**  The simulator is written in Rust. 
   Give students a project to simply port it to C++ or Python.  Emphasis
   on the word "simply."
 
-* **An evil Rust refactoring project.** Refactor the simulator so that it
+* **An evil refactoring project.** Refactor the simulator so that it
   corresponds to an eight car elevator system in a 20 story building.
   "Claude? Claude?! Is this mic on?"
   
+* **An evil Rust refactoring project.**  Refactor the simulator
+  so that's based on a different Rust programming approach such as
+  asynchronous I/O.
+
+* **An evil code review project.** Carefully review the code in
+  the simulator and think of ways that it be improved and/or 
+  simplified without giving up any functionality. Can I think of
+  some possible improvements? Yes, I can. But, can you?
+
 * **An evil physics project.** Imagine an elevator in a 100 story
   building where the elevator now accelerates up to about 30mph. Is
   it going to stop instantly when you press a button?  No, it's not.
+  There are going to be forces.  And those forces say that you 
+  should probably model the elevator hoist using a differential 
+  equation instead of a simple "Up", "Down", "Off" modal selection.
 
-* **An example of event-driven Rust programming.** I wouldn't claim to be any kind of 
-  Rust expert, but the simulator involves a variety of Rust programming
-  features including structs, enums, `Option<>`, `Result<>`, I/O, channels,
-  threads, sockets, and timers.  That's probably at least two or three
-  Stack Overflow answers all in one place.
+* **A probably not-so-evil example of event-driven Rust programming.**
+  I wouldn't claim to be any kind of Rust expert, but the simulator
+  involves a variety of Rust programming features including structs,
+  enums, `Option<>`, `Result<>`, I/O, channels, threads, sockets, and
+  timers.  That's probably at least two or three Stack Overflow
+  questions answered all in one place.
 
 ## Feedback
 

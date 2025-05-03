@@ -27,10 +27,20 @@ make an *elevator* that works without crashing!"  Indeed.  How hard
 could it be?  An elevator goes up and down. Doors open and close.
 Maybe it's kind of like a glorified toaster. 
 
-## A Simulated Elevator
+## Overview
 
-What you'll find here is a hardware simulator for a very basic
-elevator system consisting of a single elevator car in a five-floor
+An elevator is an object from everyday experience that most people
+would claim to understand.  However, elevators are surprisingly
+devious.  Thus, an elevator makes a great problem domain for all sorts
+of computer science problems involving algorithms, design, testing,
+systems, formal verification, software engineering, and more.  
+
+What you'll find here is a simulator of elevator hardware with none of
+the brains of an elevator. Thus, think of it as a kind of empty canvas
+for exploring various kinds of programming projects involving
+elevators (see the "Ideas" section at the end for possible projects).
+
+The simulator models a single elevator car in a five-floor
 building.  It's nothing fancy--the image below gives you an overall
 idea of the setup.
 
@@ -46,7 +56,13 @@ Basically, the hardware has the following features:
 * Down buttons on floors 2-5.
 * Indicator lights on each floor that can show a direction.
 
-All of this is implemented in a file `lifty.rs`.  This is a
+You can control the elevator by typing commands in the terminal or by
+sending network messages.  The simulator can also report real-time
+events to a separate program via the network.
+
+## The Simulator 
+
+The simulator is implemented in a file `lifty.rs`.  This is a
 single-file Rust project with no dependencies.  Compile it to create
 the `lifty` program:
 
@@ -293,10 +309,10 @@ to do next based on these events. Emphasis: The simulator itself has
 no smarts built into it other than some basic defense to avoid cutting
 passengers in half.
 
-## Why?
+## Ideas
 
-Who among us hasn't needed a basic elevator hardware simulator? Nobody!
-That said, here are some possible uses of this software:
+Now that you've seen the simulator, what might you do with it?  Here are some 
+possible ideas:
 
 * **An evil class project involving elevators.**  If an elevator isn't so hard
   to code, then do it!  Moreover, prove to everyone else that a) your code actually

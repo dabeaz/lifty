@@ -422,7 +422,7 @@ impl Elevator {
             if self.floor >= 5 {
                 self.crash("Hit the roof!");
             } else if self.clock == (TICKS_PER_FLOOR - APPROACH_TICKS) {
-                return Some(format!("F{}", self.floor + 1));
+                return Some(format!("A{}", self.floor + 1));
             } else if self.clock >= TICKS_PER_FLOOR {
                 self.floor += 1;
                 self.clock = 0;
@@ -436,7 +436,7 @@ impl Elevator {
             if self.floor <= 1 {
                 self.crash("Hit the ground!");
             } else if self.clock == (TICKS_PER_FLOOR - APPROACH_TICKS) {
-                return Some(format!("F{}", self.floor - 1));
+                return Some(format!("A{}", self.floor - 1));
             } else if self.clock >= TICKS_PER_FLOOR {
                 self.floor -= 1;
                 self.clock = 0;

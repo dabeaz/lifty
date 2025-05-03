@@ -283,8 +283,10 @@ impl Elevator {
             self.crash("violent direction switch (down->up)");
             return;
         }
-        self.motor = status;
-        self.clock = 0;
+	if self.motor != status {
+            self.motor = status;
+            self.clock = 0;
+	}
     }
 
     fn set_door(&mut self, status: Door) {

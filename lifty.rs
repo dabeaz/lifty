@@ -260,9 +260,9 @@ impl Elevator {
     }
 
     fn set_indicator(&mut self, floor: usize, status: Indicator) {
-        if self.indicator != Indicator::Off {
+        if self.indicator != Indicator::Off && status != Indicator::Off {
             self.crash("direction indicator already illuminated");
-        } else if status == Indicator::Off {
+        } else if self.indicator == Indicator::Off && status == Indicator::Off {
             self.crash("direction indicator already off");
         } else {
             self.indicator = status;
@@ -456,7 +456,7 @@ impl Elevator {
         } else if self.door == Door::Opening {
             if self.clock > TICKS_FOR_DOOR {
                 self.set_door(Door::Open);
-                return Some(format!("D{}", self.floor));
+                return Some(format!("O{}", self.floor));
             }
         }
         None

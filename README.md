@@ -36,9 +36,10 @@ of computer science problems involving algorithms, design, testing,
 systems, formal verification, software engineering, and more.  
 
 What you'll find here is a simulator of elevator hardware with none of
-the brains of an elevator. Thus, think of it as an empty canvas
-for exploring various kinds of programming projects involving
-elevators (see the "Ideas" section at the end for possible projects).
+the brains of elevator behavior. It's intended use is as an
+educational tool.  Thus, think of it as an empty canvas for exploring
+various kinds of programming projects involving elevators (see the
+"Ideas" section at the end for possible projects).
 
 The simulator models an elevator system consisting of a single car in
 a five-floor building.  It's nothing fancy--the image below gives you
@@ -55,6 +56,9 @@ The hardware has the following features:
 * Up buttons on floors 1-4.
 * Down buttons on floors 2-5.
 * Indicator lights on each floor that can show a direction.
+
+Certain elevator features such door open/close buttons, an emergency key, 
+and other things are ommitted in the interest of simplicity.
 
 You can control the elevator by typing commands in the terminal or by
 sending network messages.  The simulator can also report real-time

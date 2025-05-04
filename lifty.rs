@@ -286,11 +286,15 @@ impl Elevator {
 	if self.motor != status {
             self.motor = status;
             self.clock = 0;
+	} else if status == Motor::Up {
+	    self.crash("already moving up");
+	} else if status == Motor::Down {
+	    self.crash("already moving down");
 	}
     }
 
     fn set_door(&mut self, status: Door) {
-        if self.motor == Motor::Up || self.motor == Motor::Down {
+        if self.motor != Motor::Off {
             self.crash("door command received while moving");
             return;
         }
@@ -426,7 +430,7 @@ impl Elevator {
             } else if self.clock == (TICKS_PER_FLOOR - APPROACH_TICKS) {
                 return Some(format!("A{}", self.floor + 1));
             } else if self.clock >= TICKS_PER_FLOOR {
-                self.floor += 1;
+                self.floor += 1;		
                 self.clock = 0;
                 if self.stopping {
                     self.set_motor(Motor::Off);
@@ -440,7 +444,7 @@ impl Elevator {
             } else if self.clock == (TICKS_PER_FLOOR - APPROACH_TICKS) {
                 return Some(format!("A{}", self.floor - 1));
             } else if self.clock >= TICKS_PER_FLOOR {
-                self.floor -= 1;
+                self.floor -= 1;						
                 self.clock = 0;
                 if self.stopping {
                     self.set_motor(Motor::Off);

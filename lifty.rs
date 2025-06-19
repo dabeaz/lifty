@@ -88,6 +88,10 @@ const TICKS_FOR_DOOR: usize = 20;
 const APPROACH_TICKS: usize = 10;
 const TICK_INTERVAL: u64 = 100;
 
+// Turn this on if you want Lifty to be super picky or
+// if you're looking for ways to deduct grading points.
+const PEDANTIC: bool = false;
+
 // Hoist motor status
 #[derive(Debug, Clone, PartialEq)]
 enum Motor {
@@ -228,7 +232,7 @@ impl Elevator {
     }
 
     fn clear_panel_button(&mut self, floor: usize) {
-        if !self.panel_buttons[floor - 1] {
+        if PEDANTIC && !self.panel_buttons[floor - 1] {
             self.crash("panel button not previously set");
         } else {
             self.panel_buttons[floor - 1] = false;
@@ -240,7 +244,7 @@ impl Elevator {
     }
 
     fn clear_up_button(&mut self, floor: usize) {
-        if !self.up_buttons[floor - 1] {
+        if PEDANTIC && !self.up_buttons[floor - 1] {
             self.crash("up button not previously set");
         } else {
             self.up_buttons[floor - 1] = false;
@@ -252,7 +256,7 @@ impl Elevator {
     }
 
     fn clear_down_button(&mut self, floor: usize) {
-        if !self.down_buttons[floor - 1] {
+        if PEDANTIC && !self.down_buttons[floor - 1] {
             self.crash("down button not previously set");
         } else {
             self.down_buttons[floor - 1] = false;
@@ -262,7 +266,7 @@ impl Elevator {
     fn set_indicator(&mut self, floor: usize, status: Indicator) {
         if self.indicator != Indicator::Off && status != Indicator::Off {
             self.crash("direction indicator already illuminated");
-        } else if self.indicator == Indicator::Off && status == Indicator::Off {
+        } else if PEDANTIC && self.indicator == Indicator::Off && status == Indicator::Off {
             self.crash("direction indicator already off");
         } else {
             self.indicator = status;
@@ -283,14 +287,14 @@ impl Elevator {
             self.crash("violent direction switch (down->up)");
             return;
         }
-	if self.motor != status {
+        if self.motor != status {
             self.motor = status;
             self.clock = 0;
-	} else if status == Motor::Up {
-	    self.crash("already moving up");
-	} else if status == Motor::Down {
-	    self.crash("already moving down");
-	}
+        } else if status == Motor::Up {
+            self.crash("already moving up");
+        } else if status == Motor::Down {
+            self.crash("already moving down");
+        }
     }
 
     fn set_door(&mut self, status: Door) {
@@ -430,7 +434,7 @@ impl Elevator {
             } else if self.clock == (TICKS_PER_FLOOR - APPROACH_TICKS) {
                 return Some(format!("A{}", self.floor + 1));
             } else if self.clock >= TICKS_PER_FLOOR {
-                self.floor += 1;		
+                self.floor += 1;
                 self.clock = 0;
                 if self.stopping {
                     self.set_motor(Motor::Off);
@@ -444,7 +448,7 @@ impl Elevator {
             } else if self.clock == (TICKS_PER_FLOOR - APPROACH_TICKS) {
                 return Some(format!("A{}", self.floor - 1));
             } else if self.clock >= TICKS_PER_FLOOR {
-                self.floor -= 1;						
+                self.floor -= 1;
                 self.clock = 0;
                 if self.stopping {
                     self.set_motor(Motor::Off);
@@ -485,8 +489,8 @@ fn read_stdin(tx: Sender<Command>) -> ! {
     loop {
         let mut buffer = String::new();
         io::stdin().read_line(&mut buffer).unwrap();
-        let cmd = Command::UserInput(buffer.trim().to_uppercase());
-        tx.send(cmd).unwrap();
+        let cmd = buffer.trim().to_uppercase();
+        tx.send(Command::UserInput(cmd)).unwrap();
     }
 }
 
@@ -530,7 +534,7 @@ fn main() {
     let out_socket = UdpSocket::bind("0.0.0.0:0").unwrap();
 
     println!("Welcome!  I'm Lifty--a simulated elevator in a 5-floor building.\n");
-    println!("I'm just hardware, but I have buttons (type below and hit return):\n");
+    println!("I'm just hardware, but you can press my buttons\n(type below and hit return):\n");
     println!("    Pn  - Floor n button on panel inside car");
     println!("    Un  - Up button on floor n");
     println!("    Dn  - Down button on floor n\n");
@@ -567,10 +571,12 @@ fn main() {
                         cmd
                     }
                 };
-                if let Some(outcmd) = elev.handle_command(&cmd) {
-                    out_socket
-                        .send_to(outcmd.as_bytes(), CONTROL_ADDRESS)
-                        .expect("couldn't send data");
+                if cmd.len() > 0 {
+                    if let Some(outcmd) = elev.handle_command(&cmd) {
+                        out_socket
+                            .send_to(outcmd.as_bytes(), CONTROL_ADDRESS)
+                            .expect("couldn't send data");
+                    }
                 }
             }
             Err(e) => {

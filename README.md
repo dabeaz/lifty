@@ -1,4 +1,4 @@
-# Lifty - The Elevator
+# Lifty - The Elevator Project
 
 Author: David Beazley (https://www.dabeaz.com)  
 Source: https://github.com/dabeaz/lifty  
@@ -17,10 +17,11 @@ posted:
 >    floor than does Cooper. Smith does not live on a floor adjacent to
 >    Fletcher. Fletcher does not live on a floor adjacent to Cooper.
 
-"Ah, hell, what kind of [madness](https://sarabander.github.io/sicp/html/4_002e3.xhtml#g_t4_002e3_002e2) is this?" he mumbles.  After turning over
-all of the solutions in his mind before arriving at the correct floor,
-he pushes the elevator button only to find that the elevator software has
-crashed.
+"Ah, hell, what kind of
+[madness](https://sarabander.github.io/sicp/html/4_002e3.xhtml#g_t4_002e3_002e2)
+is this?" he mumbles.  After turning over all of the solutions in his
+mind before arriving at the correct floor, he pushes the elevator
+button only to find that the elevator software has crashed.
 
 "It's [ridiculous](https://www.technologyreview.com/2023/02/14/1067869/rust-worlds-fastest-growing-programming-language/)," he thought, "that we computer people can't even
 make an *elevator* that works without crashing!"  Indeed.  How hard
@@ -36,7 +37,7 @@ of computer science problems involving algorithms, design, testing,
 systems, formal verification, software engineering, and more.  
 
 What you'll find here is a simulator of elevator hardware with none of
-the brains of elevator behavior. It's intended use is as an
+the brains of elevator control. It's intended use is as an
 educational tool.  Thus, think of it as an empty canvas for exploring
 various kinds of programming projects involving elevators (see the
 "Ideas" section at the end for possible projects).
@@ -80,7 +81,8 @@ If you run it, you'll get output like this:
 bash % ./lifty
 Welcome!  I'm Lifty--a simulated elevator in a 5-floor building.
 
-I'm just hardware, but I have buttons (type below and hit return):
+I'm just hardware, but you can press my buttons
+(type below and hit return):
 
     Pn  - Floor n button on panel inside car
     Un  - Up button on floor n
@@ -104,7 +106,8 @@ the following:
 [ FLOOR 1 | CLOSED   -- | P:-2--- | U:--3-- | D:----5 ] :
 ```
 
-Here, the hardware has recorded some button presses.  However, there
+Here, the hardware has recorded some button presses (imagine that the
+buttons are now illuminated as in an actual elevator).  However, there
 are no brains built into the simulator.  Literally nothing
 happens. You can instruct the hardware to do things though. Try
 opening the door by typing "DO".  You'll see the elevator status show
@@ -144,7 +147,7 @@ CRASH! : Hit the roof!
 Again, the hardware is dumb.  The elevator did not stop at any floor
 and just slammed into the top of the building.  Once crashed, the
 elevator stays crashed and won't respond to any future commands until
-you issue a reset (R).  
+you issue a reset (R).
 
 Giving the elevator bad combinations of commands will also cause it
 to crash.   For example, telling it to open the doors and then move.
@@ -384,11 +387,11 @@ Again, lights are never cleared on their own by the simulator.
 Direction indicator lights are a helpful user interface for riders
 that is easy to overlook.  Close your eyes and visualize your use of
 an elevator.  Yes, when the elevator arrives at your floor, there is
-usually some kind of light that displays the direction of travel.
-The simulator has this, but it must be explicitly controlled.
-Here is an example of setting a direction indicator
-light. The "IU1" command illuminates the "Up" arrow on floor 1 (shown by
-"^^").  The "CI1" command turns the indicator light off.
+usually some kind of light that displays the direction of travel where
+the elevator is going next.  The simulator has this, but it must be
+explicitly controlled.  Here is an example of setting a direction
+indicator light. The "IU1" command illuminates the "Up" arrow on floor
+1 (shown by "^^").  The "CI1" command turns the indicator light off.
 
 ```
 [ FLOOR 1 | CLOSED   -- | P:----- | U:----- | D:----- ] : IU1
@@ -419,7 +422,7 @@ a great source of pedantic point deductions.  "Why did I get a B?"
 "Because you didn't turn off the up button light upon car arrival."
 "I hate you."  You get the idea.
 
-## Ideas
+## Project Ideas
 
 Now that you've seen the simulator, what might you do with it? Here are some 
 possible ideas:
@@ -442,7 +445,7 @@ possible ideas:
 
 * **An evil job interview question.** Kind of like the vibe coding idea, but
   only give applicants an hour to work on it to see how 10x they are.
-  Make sure you record the camera to see all of the sweating.
+  Make sure you record the camera so you can see all of the sweating.
 
 * **An evil object-oriented design project.** Apply various OO design
   principles to the problem of controlling an elevator.  Is this an
@@ -457,13 +460,21 @@ possible ideas:
   algorithm is correct, code it in your favorite language and watch
   the elevator work on the first try.  If not, you get an F.
   
+* **An evil human factors project.** Do elevators in the real world
+  actually work like the classic elevator algorithm might suggest?  Go 
+  study an actual elevator and carefully observe its behavior.  You
+  might be surprised at what you find out.  Note: this can be a
+  surprising rich area of class discussion if you go there. Computers
+  are usually predictable. Humans? Not so much.
+  
 * **An evil elevator demonstration tool.**  Maybe you're trying to
-  explain some kind of puzzler problem involving elevators.  Your
-  description involving the ending of the Blues Brothers fell flat, so
-  you've decided that a live demo would be better. Fire up Lifty and say
-  "now visualize yourself riding this elevator in the Building of the
-  Imagination--as perfectly embodied by this text-only program running
-  in the terminal."
+  explain some kind of puzzler problem involving elevators.  Your joke
+  involving a reference to the ending of the Blues Brothers fell flat,
+  so you've decided that a live demo would be better. Fire up Lifty
+  and say "now visualize yourself riding this elevator in the Building
+  of the Imagination--as perfectly embodied by this text-only program
+  running in the terminal."
+  
   
 ### Projects Involving the Simulator Program Itself
 

@@ -22,6 +22,7 @@ features:
   - Up request buttons on floors 1-4.
   - Down request buttons on floors 2-5.
   - A direction indicator light on each floor.
+  - A 3-position "key" switch that can enable optional modes.
 
 Residents of the building interact with me by pressing buttons.
 This is done by typing the following commands at the keyboard:
@@ -46,6 +47,7 @@ I will send the following event messages to the controller:
   Sn - Stopped at floor n (safe to open door)
   On - Door open on floor n (doors have fully opened)
   Cn - Door closed on floor n (now safe to move)
+  Kn - Key switch changed to position n
 
 I understand the following commands from the controller
 
@@ -130,6 +132,7 @@ struct Elevator {
     pub door: Door,
     pub stopping: bool,
     pub crashed: bool,
+    pub key : usize,              // Key switch setting
 }
 
 impl Elevator {
@@ -146,6 +149,7 @@ impl Elevator {
             door: Door::Closed,
             stopping: false,
             crashed: false,
+	    key : 0,
         }
     }
 
@@ -221,8 +225,13 @@ impl Elevator {
         } else {
             panic!("Can't determine status")
         };
+	let key = if self.key > 0 {
+	    format!(" | K{}", self.key)
+	} else {
+	    String::from(" ")
+	};
         format!(
-            "[ FLOOR {} | {status:8} {indicator} | {ps} | {us} | {ds} ]",
+            "[ FLOOR {} | {status:8} {indicator} | {ps} | {us} | {ds}{key} ]",
             self.floor
         )
     }
@@ -417,6 +426,13 @@ impl Elevator {
                 self.set_door(Door::Closing);
                 None
             }
+
+	    // Key switch
+            "K0"| "K1" | "K2" => {
+		self.key = cmd[1..].parse().unwrap();
+                Some(cmd.to_string())		
+            }
+	    
             // Clock
             "T" => self.handle_tick(),
             _ => {

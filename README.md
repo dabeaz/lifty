@@ -1,4 +1,4 @@
-# Lifty - The Elevator Project
+# Lifty - The Elevator
 
 Author: David Beazley (https://www.dabeaz.com)  
 Source: https://github.com/dabeaz/lifty  
@@ -31,7 +31,7 @@ Maybe it's kind of like a glorified toaster.
 ## Overview
 
 An elevator is an object from everyday experience that most people
-would claim to understand.  However, elevators are surprisingly
+would claim to "understand."  However, elevators are surprisingly
 devious.  Thus, an elevator makes a great problem domain for all sorts
 of computer science problems involving algorithms, design, testing,
 systems, formal verification, software engineering, and more.  
@@ -57,9 +57,10 @@ The hardware has the following features:
 * Up buttons on floors 1-4.
 * Down buttons on floors 2-5.
 * Indicator lights on each floor that can show a direction.
+* A three-position key-switch to enable different "modes."
 
-Certain elevator features such door open/close buttons, an emergency key, 
-and other things are ommitted in the interest of simplicity.
+Certain elevator features such door open/close buttons are
+ommitted in the interest of simplicity (sic).
 
 You can control the elevator by typing commands in the terminal or by
 sending network messages.  The simulator can also report real-time
@@ -357,6 +358,7 @@ An - Approaching floor n (in motion)
 Sn - Stopped at floor n (safe to open doors)
 Cn - Door closed on floor n (now safe to move)
 On - Door opened on floor n (door fully open)
+Kn - Key switch changed to position n (0, 1, or 2).
 ```
 
 If there is a control program running, it would make decisions about what
@@ -417,10 +419,25 @@ a button gets pressed.  For example, the elevator is *NOT* going to
 stop just because a button is illuminated---remember that the
 simulator is dumb.
 
+The three position key-switch is provided as an optional portal
+to extra coding hell. If you type a command like "K1", you'll see the
+output change to the following to indicate the key setting:
+
+```
+[ FLOOR 1 | CLOSED   -- | P:----- | U:----- | D:----- ] : K1
+[ FLOOR 1 | CLOSED   -- | P:----- | U:----- | D:----- | K1 ] : 
+```
+
+This sends a "K1" event to the control software and nothing more.  The
+purpose of this event is provide an extra challenge of having the
+elevator control support different operational modes.  For example,
+implementing an emergency responder mode or something like [Shabbat Mode](https://en.wikipedia.org/wiki/Shabbat_elevator).
+
 If you're giving some kind of class project, buttons and lights can be
 a great source of pedantic point deductions.  "Why did I get a B?"
 "Because you didn't turn off the up button light upon car arrival."
-"I hate you."  You get the idea.
+"I hate you."  Reserve the use of the key-switch for situations where
+there's too much LLM coding going on.  You get the idea.
 
 ## Project Ideas
 
@@ -515,6 +532,53 @@ possible ideas:
   enums, `Option<>`, `Result<>`, I/O, channels, threads, sockets, and
   timers.  That's probably at least two or three Stack Overflow
   questions answered all in one place.
+
+## Questions and Answers
+
+If you've played around with Lifty a bit, you might have certain 
+questions concerning its "design."
+
+**Q: Why does Lifty hate duplicated commands?**
+
+A: Quite a few commands cause a crash if they are repeated (for
+example, asking to open the door when it's already open).  Mostly this
+is about forcing precision in the implementation of the control
+software.  Yes, ignoring repeated command would life easier, but it
+can also be an excuse to code the controlling state machine in a very
+sloppy way.  Given the choice between making the hardware forgiving
+versus picky, Lifty prefers picky.
+
+**Q: Why all of the fuss with button lights and indicators?**
+
+A: Lifty is meant to be a simple elevator, but not an unrealistic
+elevator. Real elevators have various lights that turn off and on
+and which are an important part of the experience of using an
+elevator.
+
+**Q: Why does Lifty not send an event when it crashes?**
+
+A: Hardware people, being hardware people know that software
+people would probably try to turn a "crash" event into a
+recoverable exception.  So, they're not doing that.  If the elevator
+crashes for any reason, it enters "safe mode" and stays that way 
+until someone comes out in person to assess the situation.
+
+**Q: Why does resetting Lifty move the car back to floor 1?**
+
+A: For the purposes of teaching and demonstration, it's
+easier if the reset puts everything back into a known consistent 
+state.
+
+**Q: Why does Lifty use UDP networking?**
+
+A: First, Lifty is just a simulator, not a real-life elevator (which
+would obviously communicate in a much different way).  Since Lifty
+must run as a separate program, UDP is merely a convenient way to
+communicate with it that doesn't involve much fuss.  To emphasize: the
+purpose of Lifty is *NOT* to explore greater problems in networking or
+distributed computing.  Thus, if you're exploding your head writing
+code to deal with UDP packet loss, you're probably working on the
+wrong problem.
 
 ## Feedback
 
